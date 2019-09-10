@@ -1,0 +1,40 @@
+provider "aws"{
+access_key="AKIA5MQ2ETOFABD2E5ED"
+secret_key="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"
+region="ap-south-1"
+}
+
+variable "vpc_cidr"{
+        description= "CIDR for VPC"
+        default="10.0.0.0/24"
+        }
+variable "subnet_cidr"{
+		type="list"
+        description= "CIDR for Subnet"
+        default=["10.0.0.0/27", "10.0.0.32/27", "10.0.0.64/27", "10.0.0.97/27"]
+        }
+/*variable "azs" {
+		type="list"
+		default=["us-east-1a", "us-east-1b", "us-east-1c"]
+	}	*/	
+
+data "aws_availability_zones" "azs" {}
+
+resource "aws_vpc" "main"{
+        cidr_block="${var.vpc_cidr}"
+        instance_tenancy="default"
+        tags= {
+                Name="TerraVPC"
+                }
+        }
+
+resource "aws_subnet" "subnets" {
+	count="${length(var.subnet_cidr)}"
+	#count="${length(data.aws_availability_zones.azs.names)}"
+	vpc_id= "${aws_vpc.main.id}"
+	availability_zone="${element(data.aws_availability_zones.azs.names, count.index)}"
+	cidr_block="${element(var.subnet_cidr, count.index)}"
+	tags= {
+		Name="subnet-${count.index+1}"
+		}
+}
