@@ -1,0 +1,47 @@
+resource "aws_instance" "data" {
+  ami = "${var.data_ami}"
+  associate_public_ip_address = true
+  count = "${var.data_ec2_count}"
+  depends_on = ["aws_internet_gateway.default"]
+  ebs_block_device {
+    device_name = "/dev/sda1"
+    delete_on_termination = true
+  }
+  instance_type = "${var.data_instance_type}"
+  key_name = "${aws_key_pair.default.id}"
+  private_ip = "${lookup(var.data_private_ips, count.index)}"
+  subnet_id = "${aws_subnet.default.id}"
+  connection {
+    type = "ssh"
+    user = "centos"
+    private_key = "${file("${var.ssh_private_key_path}")}"
+  }
+  provisioner "file" {
+    source      = "${template_dir.data.destination_dir}"
+    destination = "/tmp/configuration"
+  }
+  provisioner "file" {
+    source      = "${path.module}/files/${var.data_configuration}/"
+    destination = "/tmp/configuration"
+  }
+  provisioner "file" {
+    content = "${element(data.template_file.data_cockroach.*.rendered, count.index)}"
+    destination = "/tmp/configuration/usr/lib/systemd/system/cockroach.service"
+  }
+  provisioner "file" {
+    content = "${element(data.template_file.data_node_number.*.rendered, count.index)}"
+    destination = "/tmp/configuration/home/centos/bin/node-number.sh"
+  }
+  provisioner "remote-exec" {
+    inline = [
+      "chmod +x /tmp/configuration/home/centos/configuration.sh",
+      "sudo /tmp/configuration/home/centos/configuration.sh",
+    ]
+
+
+  }
+  tags {
+    Name = "${local.resource_prefix}-${var.data_configuration}-ec2-${count.index}"
+  }
+  vpc_security_group_ids = ["${aws_security_group.data.id}"]
+}
