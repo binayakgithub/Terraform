@@ -1,0 +1,126 @@
+variables.tf
+
+variable "myvnet_name" { description = "It represents the Virtual Network Name" }
+variable "myvnet_address_space" { description = "It represents the  Virtual Network Address" }
+variable "myvnet_subnet_name_1" { description = "It represents the  Virtual Network SubNet" }
+variable "myvnet_subnet_addressprefix_1" { description = "It represents the  Virtual Network Subnet Address prefix" }
+variable "myvnet_subnet_name_2" { description = "It represents the  Virtual Network SubNet" }
+variable "myvnet_subnet_addressprefix_2" { description = "It represents the  Virtual Network Subnet Address prefix" }
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+values.tfvars
+
+myvnet_name                   = "myvnet"
+myvnet_address_space          = ["10.0.0.0/16"]
+myvnet_subnet_name_1          = "mysubnet1"
+myvnet_subnet_addressprefix_1 = "10.0.1.0/24"
+myvnet_subnet_name_2          = "mysubnet2"
+myvnet_subnet_addressprefix_2 = "10.0.2.0/24"
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+main.tf
+
+provider "azurerm" {
+  version = "=2.0.0"
+  features {}
+}
+
+resource "azurerm_resource_group" "resourcegroup" {
+  name     = "zedrg_Test"
+  location = "eastus2"
+}
+
+resource "azurerm_virtual_network" "myvnet" {
+  name                = var.myvnet_name
+  address_space       = var.myvnet_address_space
+  location            = azurerm_resource_group.resourcegroup.location
+  resource_group_name = azurerm_resource_group.resourcegroup.name
+}
+
+resource "azurerm_subnet" "myvnetsubnet1" {
+  name                 = var.myvnet_subnet_name_1
+  resource_group_name  = azurerm_resource_group.resourcegroup.name
+  virtual_network_name = azurerm_virtual_network.myvnet.name
+  address_prefix       = var.myvnet_subnet_addressprefix_1
+}
+
+
+resource "azurerm_network_interface" "myvnetnic1" {
+  name                = "MyNIC1"
+  location            = azurerm_resource_group.resourcegroup.location
+  resource_group_name = azurerm_resource_group.resourcegroup.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.myvnetsubnet1.id
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+
+resource "azurerm_linux_virtual_machine" "LinuxVM1" {
+  name                            = "JavaLinuxWebVM1"
+  resource_group_name             = azurerm_resource_group.resourcegroup.name
+  location                        = azurerm_resource_group.resourcegroup.location
+  size                            = "Standard_F2"
+  disable_password_authentication = "false"
+  admin_username                  = "Bootcamp"
+  admin_password                  = "Bootcamp@podc"
+
+  network_interface_ids = [azurerm_network_interface.myvnetnic1.id]
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "UbuntuServer"
+    sku       = "16.04-LTS"
+    version   = "latest"
+  }
+}
+
+
+resource "azurerm_subnet" "myvnetsubnet2" {
+  name                 = var.myvnet_subnet_name_2
+  resource_group_name  = azurerm_resource_group.resourcegroup.name
+  virtual_network_name = azurerm_virtual_network.myvnet.name
+  address_prefix       = var.myvnet_subnet_addressprefix_2
+}
+
+resource "azurerm_network_interface" "myvnetnic2" {
+  name                = "MyNIC2"
+  location            = azurerm_resource_group.resourcegroup.location
+  resource_group_name = azurerm_resource_group.resourcegroup.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.myvnetsubnet2.id
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+
+resource "azurerm_linux_virtual_machine" "LinuxVM2" {
+  name                            = "JavaLinuxWebVM2"
+  resource_group_name             = azurerm_resource_group.resourcegroup.name
+  location                        = azurerm_resource_group.resourcegroup.location
+  size                            = "Standard_F2"
+  disable_password_authentication = "false"
+  admin_username                  = "Bootcamp"
+  admin_password                  = "Bootcamp@podc"
+
+  network_interface_ids = [azurerm_network_interface.myvnetnic2.id]
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+  }
+
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "UbuntuServer"
+    sku       = "16.04-LTS"
+    version   = "latest"
+  }
+}
